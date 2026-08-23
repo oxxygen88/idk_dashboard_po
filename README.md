@@ -84,3 +84,84 @@ Default threshold mismatch 25%:
 Default basis order adalah **Nilai PO** karena lebih comparable dengan revenue. User dapat mengganti ke Qty PO.
 
 Pareto adalah indikator alokasi purchasing. Keputusan PO final tetap harus mempertimbangkan current stock, outstanding PO valid, cancel PO, MOQ, pack size, lead time, dan safety stock.
+
+## V3 bugfix - StreamlitDuplicateElementId
+Seluruh `st.plotly_chart()` sekarang memiliki `key=` unik. Ini mencegah error pada Streamlit versi baru ketika dua chart memiliki parameter/figure yang identik pada satu rerun.
+
+## V3 FIX 2
+- Semua `st.plotly_chart()` tetap menggunakan key unik.
+- Revenue Ranking sekarang mendeduplikasi daftar kolom tabel sebelum dikirim ke Streamlit/PyArrow.
+- Memperbaiki error `ValueError: Duplicate column names found` pada level Supplier/Subdept.
+
+## Update V4 — Filter Global Subdept
+
+- Subdept menjadi filter global utama: `SEMUA SUBDEPT` atau satu subdept tertentu.
+- Seluruh tab mengikuti scope Subdept aktif.
+- Supplier otomatis menjadi Top 20 Revenue di dalam Subdept terpilih.
+- Opsi `Tampilkan semua supplier` tetap tersedia.
+- Pilihan supplier otomatis di-reset saat berpindah Subdept untuk mencegah filter silang yang salah.
+
+## V5 Performance Cache Edition
+
+Optimasi utama:
+
+- CSV mentah hanya diparse/clean ketika file berubah.
+- Hasil preprocessing disimpan temporary pada `st.session_state`.
+- Raw transaction dikompresi menjadi fact table SKU/Supplier/Subdept untuk filter interaktif.
+- `monthly_flow`, lead time, demand statistics, dan safety-stock base dihitung sekali.
+- Product metrics disimpan per window risiko (1–6 bulan) setelah pertama kali digunakan.
+- Export Excel dibuat **on demand**, bukan pada setiap rerun/filter.
+- Tombol **Clear Temporary Cache** tersedia di sidebar.
+
+Cache bersifat temporary per Streamlit session dan akan hilang ketika session/server di-reset.
+
+
+## V6 — Gemini AI Analyst
+
+Fitur AI menggunakan official Google Gen AI Python SDK (`google-genai`).
+
+### Cara pakai
+
+1. Upload dataset PO, Pembelian, dan Penjualan seperti biasa.
+2. Pilih Subdept / Supplier.
+3. Di sidebar, masukkan **Gemini API Key** pada field password.
+4. Default model: `gemini-3.7-flash`.
+5. Buka tab **AI Analyst**.
+6. Klik **Test Gemini API**.
+7. Gunakan quick analysis atau ketik pertanyaan sendiri.
+
+Contoh:
+- `Kenapa kategori ini berpotensi overstock?`
+- `Supplier mana yang revenue-nya tinggi tetapi ordernya kurang?`
+- `Produk mana yang harus diprioritaskan untuk PO berikutnya?`
+- `Jelaskan 10 product understock paling berisiko.`
+- `Analisis SKU 33060001.`
+
+### Security / privacy
+
+- API key yang diketik tidak ditulis ke file.
+- Aplikasi juga mendukung `GEMINI_API_KEY` dari environment variable atau Streamlit secrets.
+- Raw CSV tidak dikirim seluruhnya ke Gemini.
+- Saat user bertanya, aplikasi mengirim analytical context yang dibatasi: KPI, monthly flow,
+  ranking, Pareto, risk tables, supplier performance, Safety Stock/ROP, dan product rows yang
+  relevan dengan pertanyaan.
+- Karena Gemini adalah layanan eksternal, analytical context yang dikirim akan diproses oleh
+  layanan Gemini API sesuai pengaturan akun/API Google Anda.
+
+### Production deployment
+
+Lebih aman menyimpan key di environment:
+
+Windows PowerShell:
+```powershell
+$env:GEMINI_API_KEY="YOUR_KEY"
+streamlit run app.py
+```
+
+atau Streamlit secrets:
+
+```toml
+GEMINI_API_KEY="YOUR_KEY"
+```
+
+User masih dapat mengoverride key server dengan field password di sidebar.
